@@ -380,3 +380,20 @@ func (fn fn) ToSql() (sql string, args []interface{}, err error) {
 
 	return
 }
+
+type any struct {
+	args Sqlizer
+}
+
+func Any(array interface{}) *any {
+	return &any{args: Array(array)}
+}
+
+func (any any) ToSql() (sql string, args []interface{}, err error) {
+	p, a, e := any.args.ToSql()
+	if e != nil {
+		return "", nil, e
+	}
+
+	return fmt.Sprintf("ANY(%s)", p), a, nil
+}
