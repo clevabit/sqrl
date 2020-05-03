@@ -432,3 +432,12 @@ func Accessor(expr string) accessor {
 func (accessor accessor) ToSql() (sql string, args []interface{}, err error) {
 	return accessor.expr, nil, nil
 }
+
+type coalesce struct {
+	column string
+	args   []string
+}
+
+func (coalesce coalesce) ToSql() (sql string, args []interface{}, err error) {
+	return fmt.Sprintf("COALESCE(%s)", strings.Join(coalesce.args, ", ")), nil, nil
+}

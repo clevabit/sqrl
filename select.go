@@ -223,6 +223,11 @@ func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectB
 	return b
 }
 
+func (b *SelectBuilder) Coalesce(column string, args ...string) *SelectBuilder {
+	b.columns = append(b.columns, )
+	return b
+}
+
 // From sets the FROM clause of the query.
 func (b *SelectBuilder) From(tables ...string) *SelectBuilder {
 	parts := make([]Sqlizer, len(tables))
