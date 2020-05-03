@@ -1,7 +1,6 @@
 package sqrl
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -68,54 +67,6 @@ func TestInsertBuilderReturning(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "INSERT INTO a (foo) VALUES (?) RETURNING (SELECT bar FROM b WHERE b.id = a.id) AS bar", sql)
 	assert.Equal(t, []interface{}{1}, args)
-}
-
-func TestInsertBuilderRunners(t *testing.T) {
-	db := &DBStub{}
-	b := Insert("test").Values(1).Suffix("RETURNING y").RunWith(db)
-
-	expectedSql := "INSERT INTO test VALUES (?) RETURNING y"
-
-	b.Exec()
-	assert.Equal(t, expectedSql, db.LastExecSql)
-
-	b.Query()
-	assert.Equal(t, expectedSql, db.LastQuerySql)
-
-	b.QueryRow()
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
-
-	b.ExecContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastExecSql)
-
-	b.QueryContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQuerySql)
-
-	b.QueryRowContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
-
-	err := b.Scan()
-	assert.NoError(t, err)
-
-}
-
-func TestInsertBuilderNoRunner(t *testing.T) {
-	b := Insert("test").Values(1)
-
-	_, err := b.Exec()
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.Query()
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.ExecContext(context.TODO())
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.QueryContext(context.TODO())
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	err = b.Scan()
-	assert.Equal(t, ErrRunnerNotSet, err)
 }
 
 func TestInsertBuilderSetMap(t *testing.T) {

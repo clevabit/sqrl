@@ -101,10 +101,10 @@ type Eq map[string]interface{}
 
 func (eq Eq) toSql(useNotOpr bool) (sql string, args []interface{}, err error) {
 	var (
-		exprs      []string
-		equalOpr   = "="
-		inOpr      = "IN"
-		nullOpr    = "IS"
+		exprs       []string
+		equalOpr    = "="
+		inOpr       = "IN"
+		nullOpr     = "IS"
 		inEmptyExpr = "(1=0)" // Portable FALSE
 	)
 
@@ -301,4 +301,82 @@ func hasSqlizer(args []interface{}) bool {
 		}
 	}
 	return false
+}
+
+// Between is syntactic sugar for use with BETWEEN methods.
+// Ex:
+//     .Where(Between{field: "id", left: 1, right: 5}) == "id between 1 and 5"
+type Between struct {
+	field string
+	left  interface{}
+	right interface{}
+}
+
+func (between Between) ToSql() (sql string, args []interface{}, err error) {
+	return fmt.Sprintf("%s BETWEEN ? AND ?", between.field), []interface{}{between.left, between.right}, nil
+}
+
+type concatExpr []interface{}
+
+func (ce concatExpr) ToSql() (sql string, args []interface{}, err error) {
+	for _, part := range ce {
+		switch p := part.(type) {
+		case string:
+			sql += p
+		case Sqlizer:
+			pSql, pArgs, err := p.ToSql()
+			if err != nil {
+				return "", nil, err
+			}
+			sql += pSql
+			args = append(args, pArgs...)
+		default:
+			return "", nil, fmt.Errorf("%#v is not a string or Sqlizer", part)
+		}
+	}
+	return
+}
+
+// ConcatExpr builds an expression by concatenating strings and other expressions.
+//
+// Ex:
+//     name_expr := Expr("CONCAT(?, ' ', ?)", firstName, lastName)
+//     ConcatExpr("COALESCE(full_name,", name_expr, ")")
+func ConcatExpr(parts ...interface{}) concatExpr {
+	return concatExpr(parts)
+}
+
+type fn struct {
+	name  string
+	fargs conj
+}
+
+func Fn(name string, args ...Sqlizer) *fn {
+	return &fn{name: name, fargs: args}
+}
+
+func (fn fn) ToSql() (sql string, args []interface{}, err error) {
+	var (
+		aSql  string
+		aArgs []interface{}
+	)
+
+	sql = fn.name + "("
+	args = make([]interface{}, 0)
+	for a := 0; a < len(fn.fargs); a++ {
+		if a > 0 {
+			sql += ", "
+		}
+
+		aSql, aArgs, err = fn.fargs[a].ToSql()
+		if err != nil {
+			return
+		}
+
+		sql += aSql
+		args = append(args, aArgs...)
+	}
+	sql += ")"
+
+	return
 }

@@ -1,7 +1,6 @@
 package sqrl
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -159,53 +158,6 @@ func TestDeleteBuilderPlaceholders(t *testing.T) {
 
 	sql, _, _ = b.PlaceholderFormat(Dollar).ToSql()
 	assert.Equal(t, "DELETE FROM test WHERE x = $1 AND y = $2", sql)
-}
-
-func TestDeleteBuilderRunners(t *testing.T) {
-	db := &DBStub{}
-	b := Delete("test").Where("x = ?", 1).Suffix("RETURNING y").RunWith(db)
-
-	expectedSql := "DELETE FROM test WHERE x = ? RETURNING y"
-
-	b.Exec()
-	assert.Equal(t, expectedSql, db.LastExecSql)
-
-	b.Query()
-	assert.Equal(t, expectedSql, db.LastQuerySql)
-
-	b.QueryRow()
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
-
-	b.ExecContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastExecSql)
-
-	b.QueryContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQuerySql)
-
-	b.QueryRowContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
-
-	err := b.Scan()
-	assert.NoError(t, err)
-}
-
-func TestDeleteBuilderNoRunner(t *testing.T) {
-	b := Delete("test")
-
-	_, err := b.Exec()
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.Query()
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.ExecContext(context.TODO())
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.QueryContext(context.TODO())
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	err = b.Scan()
-	assert.Equal(t, ErrRunnerNotSet, err)
 }
 
 func TestIssue11(t *testing.T) {

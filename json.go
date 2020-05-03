@@ -1,14 +1,12 @@
-package pg
+package sqrl
 
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/elgris/sqrl"
 )
 
 // JSONB converts value into Postgres JSONB
-func JSONB(value interface{}) sqrl.Sqlizer {
+func JSONB(value interface{}) Sqlizer {
 	return jsonOp{
 		value: value,
 		tpe:   "jsonb",
@@ -16,7 +14,7 @@ func JSONB(value interface{}) sqrl.Sqlizer {
 }
 
 // JSON converts value into Postgres JSON
-func JSON(value interface{}) sqrl.Sqlizer {
+func JSON(value interface{}) Sqlizer {
 	return jsonOp{
 		value: value,
 		tpe:   "json",

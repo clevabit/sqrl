@@ -3,7 +3,6 @@ package sqrl
 // StatementBuilderType is the type of StatementBuilder.
 type StatementBuilderType struct {
 	placeholderFormat PlaceholderFormat
-	runWith           BaseRunner
 }
 
 // Select returns a SelectBuilder for this StatementBuilder.
@@ -29,12 +28,6 @@ func (b StatementBuilderType) Delete(what ...string) *DeleteBuilder {
 // PlaceholderFormat sets the PlaceholderFormat field for any child builders.
 func (b StatementBuilderType) PlaceholderFormat(f PlaceholderFormat) StatementBuilderType {
 	b.placeholderFormat = f
-	return b
-}
-
-// RunWith sets the RunWith field for any child builders.
-func (b StatementBuilderType) RunWith(runner BaseRunner) StatementBuilderType {
-	b.runWith = wrapRunner(runner)
 	return b
 }
 

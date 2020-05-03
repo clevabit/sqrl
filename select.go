@@ -3,8 +3,10 @@ package sqrl
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
+	"github.com/clevabit/utils-go/instapgxpool"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 	"strconv"
 	"strings"
 )
@@ -23,6 +25,8 @@ type SelectBuilder struct {
 	groupBys    []string
 	havingParts []Sqlizer
 	orderBys    []string
+	union       []Sqlizer
+	unionAll    []Sqlizer
 
 	limit       uint64
 	limitValid  bool
@@ -37,57 +41,23 @@ func NewSelectBuilder(b StatementBuilderType) *SelectBuilder {
 	return &SelectBuilder{StatementBuilderType: b}
 }
 
-// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
-	b.runWith = wrapRunner(runner)
-	return b
-}
-
-// Exec builds and Execs the query with the Runner set by RunWith.
-func (b *SelectBuilder) Exec() (sql.Result, error) {
-	return b.ExecContext(context.Background())
-}
-
 // ExecContext builds and Execs the query with the Runner set by RunWith using given context.
-func (b *SelectBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
-	if b.runWith == nil {
-		return nil, ErrRunnerNotSet
-	}
-	return ExecWithContext(ctx, b.runWith, b)
-}
-
-// Query builds and Querys the query with the Runner set by RunWith.
-func (b *SelectBuilder) Query() (*sql.Rows, error) {
-	return b.QueryContext(context.Background())
+func (b *SelectBuilder) ExecContext(ctx context.Context, pool instapgxpool.Pool) (pgconn.CommandTag, error) {
+	return ExecWithContext(ctx, pool, b)
 }
 
 // QueryContext builds and Querys the query with the Runner set by RunWith in given context.
-func (b *SelectBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
-	if b.runWith == nil {
-		return nil, ErrRunnerNotSet
-	}
-	return QueryWithContext(ctx, b.runWith, b)
+func (b *SelectBuilder) QueryContext(ctx context.Context, pool instapgxpool.Pool) (pgx.Rows, error) {
+	return QueryWithContext(ctx, pool, b)
 }
 
-// QueryRow builds and QueryRows the query with the Runner set by RunWith.
-func (b *SelectBuilder) QueryRow() RowScanner {
-	return b.QueryRowContext(context.Background())
-}
-
-func (b *SelectBuilder) QueryRowContext(ctx context.Context) RowScanner {
-	if b.runWith == nil {
-		return &Row{err: ErrRunnerNotSet}
-	}
-	queryRower, ok := b.runWith.(QueryRowerContext)
-	if !ok {
-		return &Row{err: ErrRunnerNotQueryRunnerContext}
-	}
-	return QueryRowWithContext(ctx, queryRower, b)
+func (b *SelectBuilder) QueryRowContext(ctx context.Context, pool instapgxpool.Pool) RowScanner {
+	return QueryRowWithContext(ctx, pool, b)
 }
 
 // Scan is a shortcut for QueryRow().Scan.
-func (b *SelectBuilder) Scan(dest ...interface{}) error {
-	return b.QueryRow().Scan(dest...)
+func (b *SelectBuilder) Scan(ctx context.Context, pool instapgxpool.Pool, dest ...interface{}) error {
+	return b.QueryRowContext(ctx, pool).Scan(dest...)
 }
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
@@ -153,6 +123,22 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		}
 	}
 
+	if len(b.union) > 0 {
+		sql.WriteString(" UNION ")
+		args, err = appendToSql(b.union, sql, " UNION ", args)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(b.unionAll) > 0 {
+		sql.WriteString(" UNION ALL ")
+		args, err = appendToSql(b.unionAll, sql, " UNION ALL ", args)
+		if err != nil {
+			return
+		}
+	}
+
 	if len(b.groupBys) > 0 {
 		sql.WriteString(" GROUP BY ")
 		sql.WriteString(strings.Join(b.groupBys, ", "))
@@ -172,12 +158,12 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 
 	// TODO: limit == 0 and offswt == 0 are valid. Need to go dbr way and implement offsetValid and limitValid
-	if b.limitValid {
+	if b.limitValid && b.limit != 0 {
 		sql.WriteString(" LIMIT ")
 		sql.WriteString(strconv.FormatUint(b.limit, 10))
 	}
 
-	if b.offsetValid {
+	if b.offsetValid && b.offset != 0 {
 		sql.WriteString(" OFFSET ")
 		sql.WriteString(strconv.FormatUint(b.offset, 10))
 	}
@@ -227,6 +213,11 @@ func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 // the columns string, for example:
 //   Column("IF(col IN ("+Placeholders(3)+"), 1, 0) as col", 1, 2, 3)
 func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectBuilder {
+	if col, ok := column.(*SelectBuilder); ok == true {
+		sql, _, _ := col.ToSql()
+		column = fmt.Sprintf("(%s) AS %s", sql, args[0])
+	}
+
 	b.columns = append(b.columns, newPart(column, args...))
 
 	return b
@@ -254,6 +245,11 @@ func (b *SelectBuilder) JoinClause(pred interface{}, args ...interface{}) *Selec
 	b.joins = append(b.joins, newPart(pred, args...))
 
 	return b
+}
+
+// InnerJoin adds a INNER JOIN clause to the query.
+func (b SelectBuilder) InnerJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("INNER JOIN "+join, rest...)
 }
 
 // Join adds a JOIN clause to the query.
@@ -334,5 +330,27 @@ func (b *SelectBuilder) Offset(offset uint64) *SelectBuilder {
 func (b *SelectBuilder) Suffix(sql string, args ...interface{}) *SelectBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
 
+	return b
+}
+
+// Build a COUNT of the current query, without limit and offset
+func (b *SelectBuilder) Count(alias string) *SelectBuilder {
+	b.columns = nil
+	b.Columns(fmt.Sprintf(`count(1) as %s`, alias))
+	b.orderBys = nil
+	b.limitValid = false
+	b.offsetValid = false
+	return b
+}
+
+// Union adds a UNION clause to the query
+func (b *SelectBuilder) Union(query interface{}, args ...interface{}) *SelectBuilder {
+	b.union = append(b.union, newUnionPart(query, args...))
+	return b
+}
+
+// UnionAll adds a UNION ALL clause to the query
+func (b *SelectBuilder) UnionAll(query interface{}, args ...interface{}) *SelectBuilder {
+	b.unionAll = append(b.unionAll, newUnionPart(query, args...))
 	return b
 }

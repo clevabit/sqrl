@@ -3,8 +3,10 @@ package sqrl
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
+	"github.com/clevabit/utils-go/instapgxpool"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,58 +45,24 @@ func NewUpdateBuilder(b StatementBuilderType) *UpdateBuilder {
 	return &UpdateBuilder{StatementBuilderType: b}
 }
 
-// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b *UpdateBuilder) RunWith(runner BaseRunner) *UpdateBuilder {
-	b.runWith = wrapRunner(runner)
-	return b
-}
-
-// Exec builds and Execs the query with the Runner set by RunWith.
-func (b *UpdateBuilder) Exec() (sql.Result, error) {
-	return b.ExecContext(context.Background())
-}
-
 // ExecContext builds and Execs the query with the Runner set by RunWith using given context.
-func (b *UpdateBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
-	if b.runWith == nil {
-		return nil, ErrRunnerNotSet
-	}
-	return ExecWithContext(ctx, b.runWith, b)
-}
-
-// Query builds and Querys the query with the Runner set by RunWith.
-func (b *UpdateBuilder) Query() (*sql.Rows, error) {
-	return b.QueryContext(context.Background())
+func (b *UpdateBuilder) ExecContext(ctx context.Context, pool instapgxpool.Pool) (pgconn.CommandTag, error) {
+	return ExecWithContext(ctx, pool, b)
 }
 
 // QueryContext builds and runs the query using given context and Query command.
-func (b *UpdateBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
-	if b.runWith == nil {
-		return nil, ErrRunnerNotSet
-	}
-	return QueryWithContext(ctx, b.runWith, b)
-}
-
-// QueryRow builds and QueryRows the query with the Runner set by RunWith.
-func (b *UpdateBuilder) QueryRow() RowScanner {
-	return b.QueryRowContext(context.Background())
+func (b *UpdateBuilder) QueryContext(ctx context.Context, pool instapgxpool.Pool) (pgx.Rows, error) {
+	return QueryWithContext(ctx, pool, b)
 }
 
 // QueryRowContext builds and runs the query using given context.
-func (b *UpdateBuilder) QueryRowContext(ctx context.Context) RowScanner {
-	if b.runWith == nil {
-		return &Row{err: ErrRunnerNotSet}
-	}
-	queryRower, ok := b.runWith.(QueryRowerContext)
-	if !ok {
-		return &Row{err: ErrRunnerNotQueryRunnerContext}
-	}
-	return QueryRowWithContext(ctx, queryRower, b)
+func (b *UpdateBuilder) QueryRowContext(ctx context.Context, pool instapgxpool.Pool) RowScanner {
+	return QueryRowWithContext(ctx, pool, b)
 }
 
 // Scan is a shortcut for QueryRow().Scan.
-func (b *UpdateBuilder) Scan(dest ...interface{}) error {
-	return b.QueryRow().Scan(dest...)
+func (b *UpdateBuilder) Scan(ctx context.Context, pool instapgxpool.Pool, dest ...interface{}) error {
+	return b.QueryRowContext(ctx, pool).Scan(dest...)
 }
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the

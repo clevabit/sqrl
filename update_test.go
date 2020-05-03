@@ -1,7 +1,6 @@
 package sqrl
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,51 +99,4 @@ func TestUpdateBuilderPlaceholders(t *testing.T) {
 
 	sql, _, _ = b.PlaceholderFormat(Dollar).ToSql()
 	assert.Equal(t, "UPDATE test SET x = $1, y = $2", sql)
-}
-
-func TestUpdateBuilderRunners(t *testing.T) {
-	db := &DBStub{}
-	b := Update("test").Set("x", 1).Suffix("RETURNING y").RunWith(db)
-
-	expectedSql := "UPDATE test SET x = ? RETURNING y"
-
-	b.Exec()
-	assert.Equal(t, expectedSql, db.LastExecSql)
-
-	b.Query()
-	assert.Equal(t, expectedSql, db.LastQuerySql)
-
-	b.QueryRow()
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
-
-	b.ExecContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastExecSql)
-
-	b.QueryContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQuerySql)
-
-	b.QueryRowContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
-
-	err := b.Scan()
-	assert.NoError(t, err)
-}
-
-func TestUpdateBuilderNoRunner(t *testing.T) {
-	b := Update("test").Set("x", 1)
-
-	_, err := b.Exec()
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.Query()
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.ExecContext(context.TODO())
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	_, err = b.QueryContext(context.TODO())
-	assert.Equal(t, ErrRunnerNotSet, err)
-
-	err = b.Scan()
-	assert.Equal(t, ErrRunnerNotSet, err)
 }
