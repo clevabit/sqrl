@@ -396,5 +396,5 @@ func (any any) ToSql() (sql string, args []interface{}, err error) {
 		return "", nil, e
 	}
 
-	return fmt.Sprintf("%s = ANY('%s')", any.column, p), a, nil
+	return fmt.Sprintf("%s = ANY(%s)", any.column, p), a, nil
 }
