@@ -382,11 +382,12 @@ func (fn fn) ToSql() (sql string, args []interface{}, err error) {
 }
 
 type any struct {
-	args Sqlizer
+	column string
+	args   Sqlizer
 }
 
-func Any(array interface{}) *any {
-	return &any{args: Array(array)}
+func Any(column string, array interface{}) *any {
+	return &any{column: column, args: Array(array)}
 }
 
 func (any any) ToSql() (sql string, args []interface{}, err error) {
@@ -395,5 +396,5 @@ func (any any) ToSql() (sql string, args []interface{}, err error) {
 		return "", nil, e
 	}
 
-	return fmt.Sprintf("ANY(%s)", p), a, nil
+	return fmt.Sprintf("%s = ANY('%s')", any.column, p), a, nil
 }
