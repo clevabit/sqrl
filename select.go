@@ -240,6 +240,12 @@ func (b *SelectBuilder) FromSelect(from *SelectBuilder, alias string) *SelectBui
 	return b
 }
 
+// LateralJoin sets a lateral join subquery into the FROM clause of the query.
+func (b *SelectBuilder) LateralJoin(from *SelectBuilder, alias string) *SelectBuilder {
+	b.fromParts = append(b.fromParts, lateralJoin(from, alias))
+	return b
+}
+
 // JoinClause adds a join clause to the query.
 func (b *SelectBuilder) JoinClause(pred interface{}, args ...interface{}) *SelectBuilder {
 	b.joins = append(b.joins, newPart(pred, args...))
