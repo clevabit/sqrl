@@ -420,3 +420,15 @@ func (any any) ToSql() (sql string, args []interface{}, err error) {
 
 	return fmt.Sprintf("%s = ANY(%s)", any.column, p), a, nil
 }
+
+type accessor struct {
+	expr string
+}
+
+func Accessor(expr string) accessor {
+	return accessor{expr: expr}
+}
+
+func (accessor accessor) ToSql() (sql string, args []interface{}, err error) {
+	return accessor.expr, nil, nil
+}
