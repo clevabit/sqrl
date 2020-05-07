@@ -439,5 +439,5 @@ type coalesce struct {
 }
 
 func (coalesce coalesce) ToSql() (sql string, args []interface{}, err error) {
-	return fmt.Sprintf("COALESCE(%s)", strings.Join(coalesce.args, ", ")), nil, nil
+	return fmt.Sprintf("COALESCE(%s) AS %s", strings.Join(coalesce.args, ", "), coalesce.column), nil, nil
 }
