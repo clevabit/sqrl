@@ -247,7 +247,7 @@ func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectB
 }
 
 func (b *SelectBuilder) Coalesce(column string, args ...string) *SelectBuilder {
-	b.columns = append(b.columns, )
+	b.columns = append(b.columns, coalesce{column: column, args: args})
 	return b
 }
 
