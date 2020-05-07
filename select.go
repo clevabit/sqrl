@@ -41,6 +41,29 @@ func NewSelectBuilder(b StatementBuilderType) *SelectBuilder {
 	return &SelectBuilder{StatementBuilderType: b}
 }
 
+func (b *SelectBuilder) Clone() *SelectBuilder {
+	return &SelectBuilder{
+		StatementBuilderType: b.StatementBuilderType,
+		prefixes:             b.prefixes,
+		distinct:             b.distinct,
+		options:              b.options,
+		columns:              b.columns,
+		fromParts:            b.fromParts,
+		joins:                b.joins,
+		whereParts:           b.whereParts,
+		groupBys:             b.groupBys,
+		havingParts:          b.havingParts,
+		orderBys:             b.orderBys,
+		union:                b.union,
+		unionAll:             b.unionAll,
+		limit:                b.limit,
+		limitValid:           b.limitValid,
+		offset:               b.offset,
+		offsetValid:          b.offsetValid,
+		suffixes:             b.suffixes,
+	}
+}
+
 // ExecContext builds and Execs the query with the Runner set by RunWith using given context.
 func (b *SelectBuilder) ExecContext(ctx context.Context, pool instapgxpool.Pool) (pgconn.CommandTag, error) {
 	return ExecWithContext(ctx, pool, b)
