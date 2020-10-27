@@ -1,22 +1,15 @@
 package sqrl
 
-import "fmt"
-
-type unionPart part
-
-func newUnionPart(pred interface{}, args ...interface{}) Sqlizer {
-	return &unionPart{pred: pred, args: args}
+type unionPart struct {
+	expr Sqlizer
+	args []interface{}
 }
 
-func (p unionPart) ToSql() (sqlStr string, args []interface{}, err error) {
-	switch pred := p.pred.(type) {
-	case SelectBuilder:
-		sqlStr, args, err = pred.ToSql()
-	case string:
-		sqlStr = pred
-		args = p.args
-	default:
-		err = fmt.Errorf("expected string or SelectBuilder, not %T", pred)
-	}
+func newUnionPart(pred *SelectBuilder) Sqlizer {
+	return &unionPart{expr: pred}
+}
+
+func (p unionPart) ToSql() (sql string, args []interface{}, err error) {
+	sql, args, err = p.expr.ToSql()
 	return
 }

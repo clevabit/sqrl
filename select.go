@@ -378,13 +378,13 @@ func (b *SelectBuilder) Count(alias string) *SelectBuilder {
 }
 
 // Union adds a UNION clause to the query
-func (b *SelectBuilder) Union(query interface{}, args ...interface{}) *SelectBuilder {
-	b.union = append(b.union, newUnionPart(query, args...))
+func (b *SelectBuilder) Union(query *SelectBuilder) *SelectBuilder {
+	b.union = append(b.union, newUnionPart(query))
 	return b
 }
 
 // UnionAll adds a UNION ALL clause to the query
-func (b *SelectBuilder) UnionAll(query interface{}, args ...interface{}) *SelectBuilder {
-	b.unionAll = append(b.unionAll, newUnionPart(query, args...))
+func (b *SelectBuilder) UnionAll(query *SelectBuilder) *SelectBuilder {
+	b.unionAll = append(b.unionAll, newUnionPart(query))
 	return b
 }
